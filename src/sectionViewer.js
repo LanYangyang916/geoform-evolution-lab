@@ -1,12 +1,7 @@
 // sectionViewer.js
-// 地形剖面互动学习模块：
-//  三层 DOM：.section-viewer（裁剪窗口）
-//    → .section-panzoom-layer（唯一缩放/平移层）
-//      → .section-image-frame（= 图片 contain 后的真实像素尺寸，热点百分比坐标参照）
-//        → img + .section-hotspot-layer
-//
-//  热点使用百分比 left/top 定位，随 frame 自动缩放 —— 不再有像素坐标累积误差。
-//
+// 地形剖面互动学习模块
+
+import { BASE } from "./pathUtils.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -330,7 +325,7 @@ export function createSectionViewer(callbacks = {}) {
     if (hintEl) hintEl.style.display = "";
     img.style.display = "";
     currentHotspots = lf.sectionHotspots || [];
-    img.src = lf.sectionImage;
+    img.src = BASE + lf.sectionImage.replace(/^\//, "");
     img.alt = lf.sectionOverview?.title || lf.name + " 地形剖面";
     img.onload = () => {
       updateFrameSize();

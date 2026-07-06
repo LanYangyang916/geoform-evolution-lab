@@ -2,6 +2,7 @@
 // 负责 GLB 模型加载、旧模型销毁（dispose）、归一化缩放、居中、相机自动适配。
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { BASE } from "./pathUtils.js";
 
 // 目标显示尺寸：所有模型归一化后最长边约为该值，保证不同模型显示尺度相近
 const TARGET_SIZE = 4;
@@ -108,9 +109,12 @@ export function createModelLoader(ctx) {
     // 递增版本号，使正在进行的旧加载过期
     const myId = ++loadId;
 
+    // 适配 GitHub Pages 子路径：去掉前导斜杠再拼 BASE
+    const resolvedPath = BASE + modelPath.replace(/^\//, "");
+
     return new Promise((resolve, reject) => {
       loader.load(
-        modelPath,
+        resolvedPath,
         (gltf) => {
           // 过期回调直接丢弃
           if (myId !== loadId) {
@@ -147,7 +151,7 @@ export function createModelLoader(ctx) {
           }
         },
         (err) => {
-          console.error(`[modelLoader] GLB 加载失败: ${modelPath}`, err);
+          console.error(`[modelLoader] GLB 加载失败: ${resolvedPath}`, err);
           reject(err);
         }
       );

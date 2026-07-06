@@ -1,6 +1,7 @@
 // ui.js
 // 负责所有与 DOM 相关的渲染：左侧菜单、右侧详情、Toast、加载/错误状态、按钮状态、学习进度。
 import { landforms, landformOrder, landformGroups, defaultGroup } from "./data/landforms.js";
+import { BASE } from "./pathUtils.js";
 
 // 安全获取 DOM，找不到时返回 null（调用处做空值保护）
 const $ = (id) => document.getElementById(id);
@@ -104,7 +105,8 @@ export function renderLandformList(onSelect) {
     let thumbHTML = "";
     if (hasImage) {
       // img + 隐藏占位符（onerror 时切换显示）
-      thumbHTML = `<img src="${thumb.image}" alt="${thumb.description || lf.name}" class="lf-thumbnail-img" onerror="this.style.display='none';this.nextElementSibling.style.display='';" />`;
+      const thumbSrc = BASE + thumb.image.replace(/^\//, "");
+      thumbHTML = `<img src="${thumbSrc}" alt="${thumb.description || lf.name}" class="lf-thumbnail-img" onerror="this.style.display='none';this.nextElementSibling.style.display='';" />`;
       thumbHTML += `<span class="lf-thumbnail-placeholder" style="display:none;background:${thumbColor}">${thumbIcon}</span>`;
     } else {
       thumbHTML = `<span class="lf-thumbnail-placeholder" style="background:${thumbColor}">${thumbIcon}</span>`;

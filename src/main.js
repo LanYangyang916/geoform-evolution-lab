@@ -8,6 +8,7 @@ import { createSectionViewer } from "./sectionViewer.js";
 import { initNotesPage } from "./notesPage.js";
 import { initCompareLab } from "./compareLab.js";
 import * as UI from "./ui.js";
+import { asset } from "./pathUtils.js";
 import { landforms, defaultKey, landformGroups, defaultGroup } from "./data/landforms.js";
 
 // 是否开启调试模式
@@ -567,3 +568,9 @@ if (DEBUG_SECTION && sectionViewer) {
 }
 
 selectLandform(defaultKey);
+
+// 设置 Logo 图片路径（适配 GitHub Pages 子路径）
+(function setLogo() {
+  const img = document.getElementById("brand-logo-img");
+  if (img) img.src = asset("branding/logo-full.png");
+})();
