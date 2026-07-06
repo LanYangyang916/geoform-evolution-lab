@@ -1,0 +1,17 @@
+{
+  "name": "geoform-evolution-lab",
+  "version": "1.0.0",
+  "description": "地球雕刻师｜Geoform Evolution Lab - 互动式河流地貌 3D 图鉴馆",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

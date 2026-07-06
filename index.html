@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>地球雕刻师｜Geoform Evolution Lab</title>
+    <meta name="description" content="互动式河流地貌 3D 图鉴馆 - 探索自然力量如何雕刻地表" />
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <!-- 整个应用外壳：固定占满浏览器可视区域（100dvh），三行 Grid -->
+    <div class="app-shell" data-page="gallery">
+      <!-- ===================== 顶部导航栏 ===================== -->
+      <header class="topbar" role="banner">
+      <div class="brand">
+        <!-- 完整 Logo 图片 -->
+        <a class="brand-logo" href="#" aria-label="地球雕刻师｜Geoform Evolution Lab">
+          <img
+            src="/branding/logo-full.png"
+            alt="地球雕刻师｜Geoform Evolution Lab"
+          />
+        </a>
+      </div>
+
+      <nav class="topnav" aria-label="主导航">
+        <button class="topnav-item is-active" data-nav="atlas" title="图鉴馆">图鉴馆</button>
+        <button class="topnav-item" data-nav="compare" title="地貌挑战实验室">
+          地貌挑战
+        </button>
+        <button class="topnav-item" data-nav="notes" title="学习笔记">
+          学习笔记
+        </button>
+        <button class="icon-btn topnav-settings" data-nav="settings" title="设置（即将开放）" aria-label="设置">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </nav>
+    </header>
+
+    <!-- ===================== 主工作区（左中右三栏）===================== -->
+    <main class="workspace" role="main">
+      <!-- -------- 左侧：地貌导航 -------- -->
+      <aside class="panel sidebar-left" aria-label="地貌类型导航">
+        <button class="mobile-toggle" data-toggle="left" aria-expanded="true">
+          地貌类型 <span class="chevron">▾</span>
+        </button>
+        <div class="collapsible" data-collapsible="left">
+          <h2 class="panel-title">地貌类型</h2>
+          <!-- 分类切换标签 -->
+          <div class="category-tabs" id="category-tabs" role="tablist" aria-label="地貌分类切换">
+            <!-- 由 ui.js 动态渲染 -->
+          </div>
+          <ul class="landform-list" id="landform-list" role="listbox" aria-label="地貌列表">
+            <!-- 由 ui.js 动态渲染 -->
+          </ul>
+
+          <!-- 学习进度模块 -->
+          <div class="progress-box">
+            <p class="progress-title">学习进度</p>
+            <p class="progress-text">已探索 <span id="progress-count">0</span> / <span id="progress-total">10</span> 个地貌</p>
+            <div class="progress-bar"><span id="progress-fill" class="progress-fill"></span></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- -------- 中间：3D 观察区（三段式 Grid：标题 / 画布卡片 / 工具栏）-------- -->
+      <section class="panel viewer-panel" aria-label="3D 模型观察区">
+        <!-- 标题区 -->
+        <div class="stage-header">
+          <div class="stage-titles">
+            <h2 class="stage-name" id="stage-name">V 型谷</h2>
+            <p class="stage-en" id="stage-en">V-shaped Valley</p>
+          </div>
+          <p class="stage-subtitle" id="stage-subtitle">河流长期下切侵蚀形成的典型侵蚀地貌。</p>
+        </div>
+
+        <!-- Canvas 卡片：id=canvas-wrap 供 JS 全屏 / CSS2D 叠层 / ResizeObserver 使用 -->
+        <div class="viewer-canvas-card" id="canvas-wrap">
+          <div class="three-container" id="three-container">
+            <canvas id="three-canvas" aria-label="3D 地貌模型，可拖拽旋转、滚轮缩放"></canvas>
+          </div>
+
+          <!-- 地形剖面查看器（默认隐藏，点击底部"地形剖面"卡片时显示）-->
+          <div class="section-viewer is-hidden" id="section-viewer" aria-label="地形剖面观察区">
+            <!-- 无剖面图时的占位提示 -->
+            <div class="section-empty" id="section-empty" hidden>
+              <span class="section-empty-icon" aria-hidden="true">📐</span>
+              <p class="section-empty-text" id="section-empty-text">该地貌剖面图即将接入</p>
+            </div>
+            <!-- panzoom-layer：唯一的缩放/平移作用层 -->
+            <div class="section-panzoom-layer" id="section-panzoom-layer">
+              <!-- image-frame：尺寸 = 图片在容器中按 contain 计算出的真实渲染区域，
+                   热点坐标以此为百分比参照 -->
+              <div class="section-image-frame" id="section-image-frame">
+                <img id="section-image" class="section-image" alt="" draggable="false" />
+                <!-- 剖面热点：追加到此层，用百分比 left/top 定位，与 img 共享 frame -->
+                <div id="section-hotspot-layer" class="section-hotspot-layer"></div>
+              </div>
+            </div>
+            <p class="section-hint" id="section-hint">滚轮缩放 · 拖拽查看 · 点击标注学习</p>
+          </div>
+
+          <!-- 右上角工具按钮 -->
+          <div class="canvas-tools">
+            <button class="icon-btn" data-tool="rotate-hint" title="拖拽可旋转模型" aria-label="旋转提示">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <button class="icon-btn" data-tool="zoom-hint" title="滚轮可缩放模型" aria-label="缩放提示">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
+            </button>
+            <button class="icon-btn" data-tool="fullscreen" title="全屏观察" aria-label="全屏模式">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+            </button>
+            <button class="icon-btn" data-tool="screenshot" title="截图保存为 PNG" aria-label="截图按钮">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+          </div>
+
+          <!-- 加载遮罩 -->
+          <div class="loading-overlay" id="loading-overlay" role="status" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="loading-text" id="loading-text">正在加载 V 型谷模型…</p>
+          </div>
+
+          <!-- 错误提示 -->
+          <div class="error-overlay" id="error-overlay" role="alert" hidden>
+            <div class="error-icon" aria-hidden="true">!</div>
+            <p class="error-text" id="error-text">模型暂时无法加载，请检查 public/models/river/ 中的文件名与路径。</p>
+            <button class="btn btn-secondary" id="error-retry" type="button">重新尝试</button>
+          </div>
+
+          <!-- 底部操作提示 -->
+          <p class="canvas-hint">拖拽旋转 · 滚轮缩放 · 点击按钮重置视角</p>
+        </div>
+
+        <!-- 底部工具栏 -->
+        <div class="stage-toolbar">
+          <!-- ===== 模型模式工具栏 ===== -->
+          <div class="toolbar-group" id="model-toolbar">
+            <button class="btn btn-secondary" id="btn-hotspots" type="button" title="显示/隐藏地貌结构标注" aria-pressed="false" aria-label="切换结构标注">
+              <span class="btn-icon" aria-hidden="true">◎</span> <span id="hotspots-label">显示标注</span>
+            </button>
+            <button class="btn btn-primary" id="btn-autorotate" type="button" title="自动旋转模型" aria-pressed="false">
+              <span class="btn-icon" aria-hidden="true">↻</span> <span id="autorotate-label">自动旋转</span>
+            </button>
+            <button class="btn btn-secondary" id="btn-reset" type="button" title="恢复默认观察角度">
+              <span class="btn-icon" aria-hidden="true">⊙</span> 重置视角
+            </button>
+          </div>
+          <!-- ===== 剖面模式工具栏（默认隐藏）===== -->
+          <div class="toolbar-group is-hidden" id="section-toolbar">
+            <button class="btn btn-secondary" id="btn-section-hotspots" type="button" title="显示/隐藏剖面标注" aria-pressed="false" aria-label="切换剖面标注">
+              <span class="btn-icon" aria-hidden="true">◎</span> <span id="section-hotspots-label">显示标注</span>
+            </button>
+            <button class="btn btn-primary" id="btn-section-reset" type="button" title="重置剖面视图">
+              <span class="btn-icon" aria-hidden="true">⊙</span> 重置剖面
+            </button>
+            <button class="btn btn-secondary" id="btn-section-fullscreen" type="button" title="全屏观察剖面" aria-label="全屏模式">
+              <span class="btn-icon" aria-hidden="true">⛶</span> 全屏
+            </button>
+            <button class="btn btn-secondary" id="btn-section-screenshot" type="button" title="截取剖面为 PNG" aria-label="截图按钮">
+              <span class="btn-icon" aria-hidden="true">📷</span> 截图
+            </button>
+          </div>
+          <!-- "记录观察"按钮：模型/剖面模式共用 -->
+          <button class="btn btn-outline" id="btn-record-obs" type="button" title="将当前观察记录到学习笔记" aria-label="记录观察">
+            <span class="btn-icon" aria-hidden="true">✎</span> 记录观察
+          </button>
+        </div>
+      </section>
+
+      <!-- -------- 右侧：知识详情 -------- -->
+      <aside class="panel sidebar-right" aria-label="地貌知识详情">
+        <button class="mobile-toggle" data-toggle="right" aria-expanded="true">
+          地貌档案 <span class="chevron">▾</span>
+        </button>
+        <div class="collapsible" data-collapsible="right">
+          <!-- 当前剖面观察点卡片（剖面模式下点击热点后显示）-->
+          <div class="info-card focus-card section-focus-card" id="section-focus-card" hidden>
+            <p class="focus-label">当前剖面观察点</p>
+            <h3 class="focus-title" id="section-focus-title">—</h3>
+            <p class="focus-desc" id="section-focus-desc">—</p>
+            <div class="focus-task">
+              <span class="focus-task-label">观察任务</span>
+              <p class="focus-obs" id="section-focus-obs">—</p>
+            </div>
+            <button class="btn btn-secondary focus-back" id="btn-section-focus-back" type="button" title="返回整体剖面" aria-label="返回整体剖面">
+              ← 返回整体剖面
+            </button>
+          </div>
+
+          <!-- 剖面整体说明卡片（剖面模式下未选中热点时显示）-->
+          <div class="info-card focus-card" id="section-overview-card" hidden>
+            <p class="focus-label">剖面观察说明</p>
+            <h3 class="focus-title" id="section-overview-title">—</h3>
+            <p class="focus-desc" id="section-overview-desc">—</p>
+            <div class="focus-task">
+              <span class="focus-task-label">观察任务</span>
+              <p class="focus-obs" id="section-overview-obs">—</p>
+            </div>
+          </div>
+
+          <!-- 当前观察构造卡片（3D 模型模式下点击热点后显示，置于档案上方）-->
+          <div class="info-card focus-card" id="focus-card" hidden>
+            <p class="focus-label">当前观察构造</p>
+            <h3 class="focus-title" id="focus-title">—</h3>
+            <p class="focus-desc" id="focus-desc">—</p>
+            <div class="focus-task">
+              <span class="focus-task-label">观察任务</span>
+              <p class="focus-obs" id="focus-obs">—</p>
+            </div>
+            <button class="btn btn-secondary focus-back" id="btn-focus-back" type="button" title="返回整体观察" aria-label="返回整体观察">
+              ← 返回整体观察
+            </button>
+          </div>
+
+          <!-- 档案卡片 -->
+          <div class="info-card">
+            <h2 class="panel-title">地貌档案</h2>
+            <dl class="archive">
+              <div class="archive-row"><dt>类型</dt><dd id="info-type">—</dd></div>
+              <div class="archive-row"><dt>主导作用</dt><dd id="info-force">—</dd></div>
+              <div class="archive-row"><dt>形成环境</dt><dd id="info-env">—</dd></div>
+              <div class="archive-row"><dt>典型地区</dt><dd id="info-loc">—</dd></div>
+            </dl>
+          </div>
+
+          <!-- 关键特征 -->
+          <div class="info-card">
+            <h3 class="card-subtitle">关键特征</h3>
+            <div class="feature-tags" id="info-features"></div>
+          </div>
+
+          <!-- 形成过程 -->
+          <div class="info-card">
+            <h3 class="card-subtitle">形成过程</h3>
+            <ol class="steps" id="info-steps"></ol>
+          </div>
+
+          <!-- 学习提示 -->
+          <div class="info-card hint-card">
+            <h3 class="card-subtitle">💡 学习提示</h3>
+            <p class="hint-text" id="info-hint">—</p>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ===================== 学习笔记页面 ===================== -->
+    <div class="notes-page is-hidden" id="notes-page">
+      <div class="notes-layout">
+        <!-- 左栏：我的笔记 -->
+        <aside class="panel notes-left" aria-label="我的笔记">
+          <div class="notes-left-head">
+            <h2 class="panel-title">我的笔记</h2>
+            <button class="btn btn-secondary btn-sm" id="btn-note-new" type="button" title="新建一篇笔记">＋ 新建笔记</button>
+          </div>
+          <div class="notes-filter" id="notes-filter"></div>
+          <div class="notes-list" id="notes-list"></div>
+          <div class="notes-empty" id="notes-empty" hidden>
+            <p class="notes-empty-icon" aria-hidden="true">📝</p>
+            <p>还没有学习笔记。</p>
+            <p class="notes-empty-sub">从图鉴馆点击"记录观察"，<br>记录你的第一个发现吧。</p>
+          </div>
+        </aside>
+
+        <!-- 中栏：编辑区 -->
+        <div class="panel notes-editor" id="notes-editor">
+          <div class="notes-editor-empty is-hidden" id="notes-empty-new">
+            <p>选择一篇笔记，或新建一篇开始记录。</p>
+          </div>
+          <div class="notes-editor-form" id="notes-editor-form">
+            <input class="note-field note-title" id="note-title" type="text" maxlength="60"
+                   placeholder="例如：V 型谷谷底为什么狭窄？" autocomplete="off" />
+            <div class="note-row">
+              <label class="note-label">关联地貌</label>
+              <select class="note-field note-select" id="note-landform"></select>
+            </div>
+            <div class="note-row">
+              <label class="note-label">当前视图</label>
+              <span class="note-tag" id="note-viewmode">模型视图</span>
+              <button class="note-view-toggle" data-note-viewmode="model" type="button">模型</button>
+              <button class="note-view-toggle" data-note-viewmode="section" type="button">剖面</button>
+            </div>
+            <div class="note-row">
+              <label class="note-label">当前观察点</label>
+              <span class="note-tag" id="note-obstarget">整体观察</span>
+            </div>
+            <div class="note-prompts">
+              <button class="note-prompt" data-prompt="discovery" type="button">💡 我的发现</button>
+              <button class="note-prompt" data-prompt="mechanism" type="button">🔧 形成机制</button>
+              <button class="note-prompt" data-prompt="feature" type="button">🔍 识别特征</button>
+              <button class="note-prompt" data-prompt="question" type="button">❓ 待解决问题</button>
+            </div>
+            <label class="note-label">观察记录</label>
+            <textarea class="note-field note-textarea" id="note-observation" rows="5"
+                      placeholder="我观察到……&#10;从模型或剖面中，我发现……"></textarea>
+            <label class="note-label">思考问题</label>
+            <textarea class="note-field note-textarea" id="note-question" rows="3"
+                      placeholder="我还想进一步弄清……&#10;为什么……"></textarea>
+            <div class="note-meta-row">
+              <span class="note-modified" id="note-modified"></span>
+              <span class="note-pinned-label" id="note-pinned-label">未固定</span>
+            </div>
+            <div class="note-actions">
+              <button class="btn btn-primary" id="note-save" type="button" title="保存笔记 (Ctrl+S)">保存笔记</button>
+              <button class="btn btn-secondary" id="note-pin" type="button">📌 固定</button>
+              <button class="btn btn-secondary note-btn-delete" id="note-delete" type="button">删除</button>
+              <button class="btn btn-outline" id="btn-notes-back" type="button">← 返回图鉴馆</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右栏：地貌提示 -->
+        <aside class="panel notes-right" aria-label="当前地貌提示">
+          <h3 class="panel-title">当前地貌提示</h3>
+          <div class="notes-hint-right" id="notes-hint-right">
+            <p class="notes-hint-empty">选择笔记后，这里会显示关联地貌的提示。</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ===================== 地貌挑战实验室页面 ===================== -->
+    <div class="compare-page is-hidden" id="compare-page">
+      <div class="compare-layout">
+        <!-- 左栏：关卡导航 -->
+        <aside class="panel compare-left" aria-label="关卡导航">
+          <h2 class="panel-title">地貌挑战实验室</h2>
+          <p class="challenge-subtitle">通过观察、判断与对比，完成地貌识别挑战。</p>
+          <!-- 分类切换 -->
+          <div class="challenge-category-tabs" id="challenge-category-tabs"></div>
+          <!-- 关卡列表 -->
+          <div class="challenge-level-list" id="challenge-level-list"></div>
+        </aside>
+
+        <!-- 中栏：答题主区域 -->
+        <div class="panel compare-main" aria-label="答题区域">
+          <div class="challenge-quiz-area" id="challenge-quiz-area">
+            <!-- 由 JS 动态渲染 -->
+          </div>
+        </div>
+
+        <!-- 右栏：关卡信息 -->
+        <aside class="panel compare-right" aria-label="关卡信息">
+          <div class="compare-right-body">
+            <!-- 本关目标 -->
+            <div class="cmp-section">
+              <h4 class="cmp-section-title">🎯 本关目标</h4>
+              <div id="challenge-goal"><p class="challenge-goal-text">选择关卡开始挑战。</p></div>
+            </div>
+            <!-- 当前得分 -->
+            <div class="cmp-section">
+              <h4 class="cmp-section-title">⭐ 当前得分</h4>
+              <div id="challenge-score">
+                <span class="challenge-score-stars">☆☆☆☆☆☆☆☆☆☆☆☆</span>
+                <span class="challenge-score-text">0/4 关完成</span>
+              </div>
+            </div>
+            <!-- 观察提示 -->
+            <div class="cmp-section">
+              <h4 class="cmp-section-title">💡 观察提示</h4>
+              <p class="challenge-hint-tip" id="challenge-hint-tip">完成作答后解锁解析。</p>
+            </div>
+            <!-- 答题解析 -->
+            <div class="cmp-section challenge-explain is-locked" id="challenge-explain">
+              <span class="challenge-explain-lock">🔒</span>
+              <p class="challenge-explain-text">完成作答后解锁解析</p>
+            </div>
+            <!-- 已掌握 -->
+            <div class="cmp-section">
+              <div id="challenge-mastered"></div>
+            </div>
+          </div>
+          <button class="btn btn-primary cmp-btn-record" id="challenge-btn-record" type="button" title="将挑战记录保存到学习笔记" style="display:none;">✎ 记录挑战结果</button>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ===================== 底部多尺度观察栏（Grid 第三行，正常文档流）===================== -->
+    <footer class="multiscale-panel" aria-label="多尺度观察">
+      <h2 class="multiscale-title">多尺度观察</h2>
+      <div class="scale-cards">
+        <button class="scale-card is-active" data-scale="model" title="模型视图">
+          <span class="scale-icon" aria-hidden="true">🧊</span>
+          <span class="scale-text">
+            <span class="scale-name">模型视图</span>
+            <span class="scale-desc">3D 互动模型</span>
+          </span>
+        </button>
+        <button class="scale-card" data-scale="profile" title="地形剖面">
+          <span class="scale-icon" aria-hidden="true">📐</span>
+          <span class="scale-text">
+            <span class="scale-name">地形剖面</span>
+            <span class="scale-desc">互动剖面图</span>
+          </span>
+        </button>
+        <button class="scale-card" data-scale="satellite" title="卫星视角（即将接入）">
+          <span class="scale-icon" aria-hidden="true">🛰️</span>
+          <span class="scale-text">
+            <span class="scale-name">卫星视角</span>
+            <span class="scale-soon">即将接入</span>
+          </span>
+        </button>
+        <button class="scale-card" data-scale="photo" title="实景照片（即将接入）">
+          <span class="scale-icon" aria-hidden="true">📷</span>
+          <span class="scale-text">
+            <span class="scale-name">实景照片</span>
+            <span class="scale-soon">即将接入</span>
+          </span>
+        </button>
+      </div>
+    </footer>
+
+    <!-- Toast 容器 -->
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- 剖面坐标调试面板（仅 ?debugSection=1 时由 JS 显示）-->
+    <div class="debug-panel section-debug-panel" id="section-debug-panel" hidden>
+      <div class="debug-head">
+        <span class="debug-dot" aria-hidden="true"></span>
+        <span>剖面热点调试模式</span>
+      </div>
+      <p class="debug-hint">点击剖面图任意位置以拾取百分比坐标</p>
+      <p class="debug-row">当前地貌：<span id="section-debug-model">—</span></p>
+      <pre class="debug-coord" id="section-debug-coord">x: — | y: —</pre>
+      <button class="btn btn-secondary debug-copy" id="section-debug-copy" type="button" title="复制坐标">复制坐标</button>
+    </div>
+
+    <!-- 3D 热点坐标调试面板（仅 ?debugHotspots=1 时由 JS 显示）-->
+    <div class="debug-panel" id="debug-panel" hidden>
+      <div class="debug-head">
+        <span class="debug-dot" aria-hidden="true"></span>
+        <span>热点调试模式</span>
+      </div>
+      <p class="debug-hint">按住 Shift 点击模型表面以拾取坐标</p>
+      <p class="debug-row">当前模型：<span id="debug-model">—</span></p>
+      <pre class="debug-coord" id="debug-coord">relativePosition: [ — , — , — ]</pre>
+      <button class="btn btn-secondary debug-copy" id="debug-copy" type="button" title="复制 JSON 坐标">复制 JSON 坐标</button>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+    </div><!-- /app-shell -->
+  </body>
+</html>

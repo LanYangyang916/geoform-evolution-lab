@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>调试：V 型谷 GLB 最小化测试</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #log {
+      position: fixed; top: 10px; left: 10px; right: 10px;
+      max-height: 40vh; overflow-y: auto;
+      background: rgba(0,0,0,.75); color: #0f0;
+      font: 12px monospace; padding: 12px;
+      border-radius: 6px; z-index: 10;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .err { color: #f44; }
+    .warn { color: #fa0; }
+  </style>
+</head>
+<body>
+<pre id="log"></pre>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/node_modules/three/build/three.module.js",
+    "three/addons/": "/node_modules/three/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+  const logEl = document.getElementById("log");
+  const lines = [];
+  function log(msg, cls) {
+    const t = new Date().toISOString().slice(11,19);
+    const line = `[${t}] ${msg}`;
+    lines.push({ line, cls });
+    logEl.innerHTML = lines.map(l => `<span class="${l.cls||''}">${l.line}</span>`).join("\n");
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  log("=== 最小化 GLB 调试页 ===");
+  log("BUILD: debug-model.html 20260706_01");
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  log(`Renderer: toneMapping=NoToneMapping outputColorSpace=SRGBColorSpace`);
+  document.body.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf7f3eb);
+  log(`Scene background: #f7f3eb (panel米白)`);
+
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.set(4, 3, 6);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.enableDamping = true;
+  controls.update();
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xe7dfd2, 0.5));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+  dirLight.position.set(5, 8, 6);
+  scene.add(dirLight);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
+  fillLight.position.set(-6, 4, -4);
+  scene.add(fillLight);
+  log(`Lights: ambient + hemisphere + directional + fill`);
+
+  // Ground shadow
+  const groundGeo = new THREE.PlaneGeometry(60, 60);
+  const groundMat = new THREE.ShadowMaterial({ opacity: 0.16 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Load model
+  const MODEL_PATH = "/models/river/v-valley.glb";
+  log(`Loading: ${MODEL_PATH}`);
+
+  const loader = new GLTFLoader();
+  loader.load(
+    MODEL_PATH,
+    (gltf) => {
+      log(`✓ GLB loaded. Scene children before add: ${scene.children.length}`);
+      const model = gltf.scene;
+
+      // Normalize
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const TARGET = 4;
+      model.scale.setScalar(TARGET / maxDim);
+      const box2 = new THREE.Box3().setFromObject(model);
+      const center2 = box2.getCenter(new THREE.Vector3());
+      model.position.x -= center2.x;
+      model.position.z -= center2.z;
+      model.position.y -= box2.min.y;
+
+      // Set shadow ONLY
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      scene.add(model);
+      log(`✓ Model added. Total scene children: ${scene.children.length}`);
+
+      // Material DIAGNOSTICS
+      let meshIdx = 0;
+      model.traverse((child) => {
+        if (!child.isMesh) return;
+        meshIdx++;
+        const mat = Array.isArray(child.material) ? child.material[0] : child.material;
+        const info = {
+          name: child.name || `(unnamed-${meshIdx})`,
+          type: mat ? mat.type : "null",
+          color: mat && mat.color ? `#${mat.color.getHex().toString(16).padStart(6,"0")}` : "N/A",
+          hasMap: !!(mat && mat.map),
+          hasNormalMap: !!(mat && mat.normalMap),
+          hasRoughnessMap: !!(mat && mat.roughnessMap),
+          hasAoMap: !!(mat && mat.aoMap),
+          mapSource: mat && mat.map && mat.map.source ? `w=${mat.map.source.data.width}h=${mat.map.source.data.height}` : "none",
+        };
+        log(`  Mesh#${meshIdx} "${info.name}"`);
+        log(`    type=${info.type} color=${info.color} map=${info.hasMap} normalMap=${info.hasNormalMap} roughMap=${info.hasRoughnessMap} aoMap=${info.hasAoMap}`);
+        log(`    mapSource=${info.mapSource}`);
+      });
+      log(`Total meshes: ${meshIdx}`);
+
+      // Camera fit
+      const boxF = new THREE.Box3().setFromObject(model);
+      const centerF = boxF.getCenter(new THREE.Vector3());
+      const maxDimF = Math.max(boxF.getSize(new THREE.Vector3()).x, boxF.getSize(new THREE.Vector3()).y, boxF.getSize(new THREE.Vector3()).z);
+      const fov = (camera.fov * Math.PI) / 180;
+      let dist = (maxDimF / 2 / Math.tan(fov / 2)) * 1.6;
+      dist = Math.max(dist, controls.minDistance + 0.5);
+      const dir = new THREE.Vector3(0.7, 0.55, 1).normalize();
+      camera.position.copy(centerF.clone().add(dir.multiplyScalar(dist)));
+      controls.target.copy(centerF);
+      ground.position.y = boxF.min.y;
+      controls.update();
+
+      log(`✓ Camera fitted. dist=${dist.toFixed(2)}`);
+
+      // Render one frame
+      renderer.render(scene, camera);
+      log(`✓ Render complete.`);
+      log(`=== 请在浏览器中观察模型颜色，然后多次刷新 (Ctrl+R) 测试 ===`);
+    },
+    (xhr) => {
+      if (xhr.total) {
+        const pct = Math.round(xhr.loaded / xhr.total * 100);
+        log(`  ... ${pct}%`);
+      }
+    },
+    (err) => {
+      log(`❌ LOAD FAILED: ${err.message || err}`, "err");
+      log(`   URL: ${MODEL_PATH}`);
+    }
+  );
+
+  // Render loop
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+</body>
+</html>
